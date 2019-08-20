@@ -1,0 +1,5 @@
+urwid
+requests
+flake8
+pep8
+python-dotenv

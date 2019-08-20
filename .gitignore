@@ -1,0 +1,6 @@
+*.log
+env
+.vscode
+.cache.json
+__pycache__/
+*.py[cod]
