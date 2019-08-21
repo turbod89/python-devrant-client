@@ -23,10 +23,14 @@ class GenericRantList(urwid.WidgetWrap):
                     urwid.Divider(u'\u2500')
                 )
 
-            user_text = "@{} (+{}) (#{})".format(
+            user_text = u"@{} (++{}) (#{})".format(
                 rant.user.username,
                 rant.user.score,
-                rant.user.id
+                rant.user.id,
+            )
+
+            comments_text = u"{} \U0001F4AC".format(
+                rant.num_comments
             )
 
             rant_tags_widget = urwid.GridFlow(
@@ -57,7 +61,12 @@ class GenericRantList(urwid.WidgetWrap):
                 urwid.Pile(
                     [
                         urwid.AttrMap(
-                            urwid.Text(user_text),
+                            urwid.Columns(
+                                [
+                                    urwid.Text(user_text),
+                                    urwid.Text(comments_text, align='right')
+                                ],
+                            ),
                             'rant_user'
                         ),
                         urwid.Divider(),
