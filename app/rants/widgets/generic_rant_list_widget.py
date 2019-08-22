@@ -117,7 +117,6 @@ class GenericRantList(urwid.WidgetWrap):
     def _subscribe_rant_list(self):
         async def action(new_value, old_value):
             self.rants = new_value
-            logging.debug(len(self.widget.contents['body'][0].body))
 
             simple_list_walker = self.widget.contents['body'][0].body
             i = 0
@@ -127,7 +126,7 @@ class GenericRantList(urwid.WidgetWrap):
             while i < len(simple_list_walker) and j < len(new_value):
                 element = simple_list_walker[i]
                 rant = new_value[j]
-                if type(i) is not RantListElement:
+                if type(element) is not RantListElement:
                     i += 1
                 else:
                     self.update_rant_list_element(element, rant)
