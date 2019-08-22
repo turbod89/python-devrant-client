@@ -1,6 +1,6 @@
 import urwid
 import asyncio
-from app.services import dev_rant_service
+from app.services import dev_rant_service, logging
 from .generic_rant_list_widget import GenericRantList
 
 
@@ -17,11 +17,25 @@ class AllRantList(urwid.WidgetWrap):
     def subscribe_body_update(self):
         async def body_update_subscription_action(body, old_value):
             list_content = body.widget.contents['body'][0].body.contents
-            if len(list_content) > 0 and list_content[0] is self.refresh_widget:
-                pass
-            else:
-                list_content.insert(0, self.refresh_widget)
-                list_content.append(self.get_more_widget)
+
+            refresh_widget_index = None
+            get_more_widget_index = None
+            for i, element in enumerate(list_content):
+                if element is self.refresh_widget:
+                    refresh_widget_index = i
+                elif element is self.get_more_widget:
+                    get_more_widget_index = i
+
+            # asume refresh_widget_index < get_more_widget_index
+            if get_more_widget_index is not None:
+                list_content.pop(get_more_widget_index)
+
+            if refresh_widget_index is not None:
+                list_content.pop(refresh_widget_index)
+
+            # apend again
+            list_content.insert(0, self.refresh_widget)
+            list_content.append(self.get_more_widget)
 
         self.body_update_subscription = self.body.update.subscribe(
             body_update_subscription_action, True)
