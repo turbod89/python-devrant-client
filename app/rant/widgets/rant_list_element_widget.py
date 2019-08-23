@@ -1,5 +1,6 @@
 import urwid
 from app.shared.widgets import TimeAgoText
+from app.services import router_service
 
 
 class RantListElementWidget(urwid.Pile):
@@ -59,6 +60,11 @@ class RantListElementWidget(urwid.Pile):
                 urwid.Divider()
             ]
 
+        def navigate_to_details(*args, **kwargs):
+            router_service.navigate_to('/rant', rant)
+
+        view_detail_btn = urwid.Button('View', navigate_to_details)
+
         subelements = [
             urwid.AttrMap(
                 urwid.Columns(
@@ -74,6 +80,7 @@ class RantListElementWidget(urwid.Pile):
             urwid.Divider(),
         ] + image_widget_list + [
             rant_tags_widget,
+            view_detail_btn,
             urwid.Divider(),
         ]
 

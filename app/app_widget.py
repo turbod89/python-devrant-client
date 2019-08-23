@@ -1,6 +1,8 @@
 import urwid
+import asyncio
+from app.services import router_service, logging
 from app.rants.widgets import AllRantList
-from app.rant.widgets import NewRantWidget
+from app.rant.widgets import NewRantWidget, RantDetailWidget
 from app.main_menu.widgets import MainMenu
 from app.auth.widgets import LoginWidget
 from app.services import dev_rant_service, logging
@@ -19,6 +21,7 @@ class AppWidget(AppStyle, urwid.WidgetWrap):
         self.main_menu = MainMenu(controller, parent_widget=self)
         self.rant_list = AllRantList()
         self.new_rant_widget = NewRantWidget(parent_widget=self)
+        self.rant_detail_widget = RantDetailWidget(parent_widget=self)
         self.login_widget = LoginWidget(parent_widget=self)
 
         self.create()
@@ -69,7 +72,25 @@ class AppWidget(AppStyle, urwid.WidgetWrap):
             )
         return show_login_widget
 
+    def _register_route_rant_detail_widget(self):
+        def show_rant_detail_widget(*args, **kwargs):
+
+            if len(args) == 0:
+                logging.error('Expected to receive a rant to navigate to.')
+
+            self.rant_detail_widget.rant = args[0]
+
+            self.columns_widget.contents[2] = (
+                self.rant_detail_widget,
+                self.columns_widget.contents[2][1]
+            )
+
+        router_service.register_route('/rant', show_rant_detail_widget)
+        return self
+
     def create(self):
+
+        self._register_route_rant_detail_widget()
 
         self.columns_widget = urwid.Columns(
             [

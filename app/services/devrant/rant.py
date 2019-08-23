@@ -1,8 +1,10 @@
-from datetime import datetime
-from ..logging import logging
-from ..custom_pyrx import Subscriptable
 import math
 import asyncio
+from datetime import datetime
+from rx.subject import Subject
+from ..logging import logging
+
+logger = logging.getLogger(__name__)
 
 
 def to_date(timestamp, *args, **kwargs):
@@ -76,7 +78,7 @@ class Rant(object):
 
     def __init__(self, *args, **kwargs):
         self._prevent_update = False
-        self._update_S = Subscriptable()
+        self._update_S = Subject()
         for arg in args:
             if type(arg) is dict:
                 self.from_dict(arg)
@@ -87,21 +89,20 @@ class Rant(object):
         return self._update_S
 
     def __setattr__(self, name, value):
-        if hasattr(self, '_prevent_update') and not self._prevent_update and name in Rant.fields:
+        if hasattr(self, '_prevent_update') and not self._prevent_update\
+                and name in Rant.fields:
             old_value = getattr(self, name, None)
             return_value = super().__setattr__(name, value)
             if old_value != value:
-                asyncio.ensure_future(
-                    self._update_S.change({
-                        'type': 'Update',
-                        'prev': {
-                            name: old_value
-                        },
-                        'current': {
-                            name: value
-                        }
-                    })
-                )
+                self._update_S.on_next({
+                    'type': 'Update',
+                    'prev': {
+                        name: old_value
+                    },
+                    'current': {
+                        name: value
+                    }
+                })
             return return_value
         else:
             return super().__setattr__(name, value)
@@ -148,9 +149,7 @@ class Rant(object):
                     update_value['prev'][final_field] = old_value
                     update_value['current'][final_field] = new_value
 
-        asyncio.ensure_future(
-            self._update_S.change(update_value)
-        )
+        self._update_S.on_next(update_value)
 
         self._prevent_update = _prevent_update
 
