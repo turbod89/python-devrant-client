@@ -1,12 +1,6 @@
 import urwid
-import asyncio, sys
-from datetime import datetime
-from app.shared.widgets import TimeAgoText
-from app.services import Subscriptable, logging
-
-
-class RantListElement(urwid.Pile):
-    pass
+from app.rant.widgets import RantListElementWidget
+from app.services import Subscriptable
 
 
 class GenericRantList(urwid.WidgetWrap):
@@ -21,91 +15,6 @@ class GenericRantList(urwid.WidgetWrap):
         self.create()
         super().__init__(self.widget)
 
-    def update_rant_list_element(self, element, rant):
-
-        user_text = u"@{} (++{}) (#{})".format(
-            rant.user.username,
-            rant.user.score,
-            rant.user.id,
-        )
-
-        comments_text_widget = urwid.Text( 
-            u"{} \U0001F4AC".format(
-                rant.num_comments
-            ),
-            align='right'
-        )
-
-        time_ago_text_widget = TimeAgoText(
-            from_time=rant.created_time,
-            format=u"{} \U0001F552",
-            align='right'
-        )
-        right_widget = urwid.Columns(
-            [
-                time_ago_text_widget,
-                ('fixed', 8, comments_text_widget),
-            ],
-        )
-
-        rant_tags_widget = urwid.GridFlow(
-            [
-                urwid.AttrMap(
-                    urwid.Text('{}'.format(tag)),
-                    'rant_tag'
-                )
-                for tag in rant.tags
-            ],
-            10,
-            1,
-            1,
-            'left'
-        )
-
-        image_widget_list = []
-
-        if rant.has_image:
-            image_widget_list = [
-                urwid.AttrMap(
-                    urwid.Text("{}".format(rant.image.url)),
-                    'link'
-                ),
-                urwid.Divider()
-            ]
-
-        subelements = [
-            urwid.AttrMap(
-                urwid.Columns(
-                    [
-                        urwid.Text(user_text),
-                        right_widget
-                    ],
-                ),
-                'rant_user'
-            ),
-            urwid.Divider(),
-            urwid.Text("{}".format(rant.text)),
-            urwid.Divider(),
-        ] + image_widget_list + [
-            rant_tags_widget,
-            urwid.Divider(),
-        ]
-
-        element.contents = [
-            (subelement, ('weight', 1))
-            for subelement in subelements
-        ]
-
-        return self
-
-    def create_rant_list_element(self, rant):
-
-        element = RantListElement([])
-
-        self.update_rant_list_element(element, rant)
-
-        return element
-
     def create_list_box(self):
 
         elements = []
@@ -115,7 +24,7 @@ class GenericRantList(urwid.WidgetWrap):
                     urwid.Divider(u'\u2500')
                 )
 
-            element = self.create_rant_list_element(rant)
+            element = RantListElementWidget(rant)
             elements.append(element)
 
         list_box = urwid.ListBox(
@@ -144,10 +53,10 @@ class GenericRantList(urwid.WidgetWrap):
             while i < len(simple_list_walker) and j < len(new_value):
                 element = simple_list_walker[i]
                 rant = new_value[j]
-                if type(element) is not RantListElement:
+                if type(element) is not RantListElementWidget:
                     i += 1
                 else:
-                    self.update_rant_list_element(element, rant)
+                    element.update_rant(rant)
                     i += 1
                     j += 1
 
@@ -160,7 +69,7 @@ class GenericRantList(urwid.WidgetWrap):
                     )
                     i += 1
                 simple_list_walker.contents.append(
-                    self.create_rant_list_element(rant)
+                    RantListElementWidget(rant)
                 )
                 i += 1
                 j += 1
