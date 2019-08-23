@@ -1,4 +1,7 @@
 import urwid
+import asyncio, sys
+from datetime import datetime
+from app.shared.widgets import TimeAgoText
 from app.services import Subscriptable, logging
 
 
@@ -26,8 +29,23 @@ class GenericRantList(urwid.WidgetWrap):
             rant.user.id,
         )
 
-        comments_text = u"{} \U0001F4AC".format(
-            rant.num_comments
+        comments_text_widget = urwid.Text( 
+            u"{} \U0001F4AC".format(
+                rant.num_comments
+            ),
+            align='right'
+        )
+
+        time_ago_text_widget = TimeAgoText(
+            from_time=rant.created_time,
+            format=u"{} \U0001F552",
+            align='right'
+        )
+        right_widget = urwid.Columns(
+            [
+                time_ago_text_widget,
+                ('fixed', 8, comments_text_widget),
+            ],
         )
 
         rant_tags_widget = urwid.GridFlow(
@@ -60,7 +78,7 @@ class GenericRantList(urwid.WidgetWrap):
                 urwid.Columns(
                     [
                         urwid.Text(user_text),
-                        urwid.Text(comments_text, align='right')
+                        right_widget
                     ],
                 ),
                 'rant_user'
