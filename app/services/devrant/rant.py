@@ -1,5 +1,8 @@
 from datetime import datetime
+from ..logging import logging
+from ..custom_pyrx import Subscriptable
 import math
+import asyncio
 
 
 def to_date(timestamp, *args, **kwargs):
@@ -69,13 +72,50 @@ field_mapping = (
 
 class Rant(object):
 
+    fields = [f[1] for f in field_mapping]
+
     def __init__(self, *args, **kwargs):
+        self._prevent_update = False
+        self._update_S = Subscriptable()
         for arg in args:
             if type(arg) is dict:
                 self.from_dict(arg)
         self.from_dict(kwargs)
 
+    @property
+    def update_S(self):
+        return self._update_S
+
+    def __setattr__(self, name, value):
+        if hasattr(self, '_prevent_update') and not self._prevent_update and name in Rant.fields:
+            old_value = getattr(self, name, None)
+            return_value = super().__setattr__(name, value)
+            if old_value != value:
+                asyncio.ensure_future(
+                    self._update_S.change({
+                        'type': 'Update',
+                        'prev': {
+                            name: old_value
+                        },
+                        'current': {
+                            name: value
+                        }
+                    })
+                )
+            return return_value
+        else:
+            return super().__setattr__(name, value)
+
     def from_dict(self, data):
+
+        _prevent_update = self._prevent_update
+        self._prevent_update = True
+
+        update_value = {
+            'type': 'Update',
+            'prev': {},
+            'current': {}
+        }
 
         for original_field, final_field, transformation, _ in field_mapping:
 
@@ -86,17 +126,33 @@ class Rant(object):
                     # keep actual value
                     pass
             elif transformation is None:
-                setattr(self, final_field, data.get(original_field))
+                old_value = getattr(self, final_field, None)
+                new_value = data.get(original_field)
+                setattr(self, final_field, new_value)
+                if old_value != new_value:
+                    update_value['prev'][final_field] = old_value
+                    update_value['current'][final_field] = new_value
             else:
+                old_value = getattr(self, final_field, None)
+                new_value = transformation(
+                    data.get(original_field),
+                    data,
+                    self
+                )
                 setattr(
                     self,
                     final_field,
-                    transformation(
-                        data.get(original_field),
-                        data,
-                        self
-                    )
+                    new_value
                 )
+                if old_value != new_value:
+                    update_value['prev'][final_field] = old_value
+                    update_value['current'][final_field] = new_value
+
+        asyncio.ensure_future(
+            self._update_S.change(update_value)
+        )
+
+        self._prevent_update = _prevent_update
 
         return self
 
