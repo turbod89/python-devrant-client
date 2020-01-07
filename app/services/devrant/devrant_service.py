@@ -194,30 +194,30 @@ class DevRantService():
             data=form_data
         )
 
-        await draft_rant.state.change(DraftState.Sent)
+        draft_rant.state.on_next(DraftState.Sent)
 
         if draft_rant.response.status_code == 200:
             success = json.loads(draft_rant.response.text).get('success')
             if success:
                 await self.get_new_rants()
-                await draft_rant.state.change(DraftState.Published)
+                draft_rant.state.on_next(DraftState.Published)
             else:
-                await draft_rant.state.change(DraftState.Rejected)
-                await self.error.on_next({
+                draft_rant.state.on_next(DraftState.Rejected)
+                self.error.on_next({
                     'code': 2,
                     'message': 'Posted rant error',
                     'response': draft_rant.response
                 })
         elif draft_rant.response.status_code == 400:
-            await draft_rant.state.change(DraftState.Rejected)
-            await self.error.on_next({
+            draft_rant.state.on_next(DraftState.Rejected)
+            self.error.on_next({
                 'code': 2,
                 'message': 'Posted rant error',
                 'response': draft_rant.response
             })
         else:
-            await draft_rant.state.change(DraftState.Rejected)
-            await self.error.on_next({
+            draft_rant.state.on_next(DraftState.Rejected)
+            self.error.on_next({
                 'code': 1,
                 'message': 'Unexpected status code',
                 'response': draft_rant.response
