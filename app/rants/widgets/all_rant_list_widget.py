@@ -10,12 +10,17 @@ class AllRantList(urwid.WidgetWrap):
 
         self.widget = None
         self.body = GenericRantList(dev_rant_service.rants)
+        self._subscriptions = []
 
         self.create()
         super().__init__(self.widget)
 
+    def __del__(self):
+        for subscription in self._subscritpions:
+            subscription.unsubscribe()
+
     def subscribe_body_update(self):
-        async def body_update_subscription_action(body, old_value):
+        def body_update_subscription_action(body):
             list_content = body.widget.contents['body'][0].body.contents
 
             refresh_widget_index = None
@@ -37,8 +42,9 @@ class AllRantList(urwid.WidgetWrap):
             list_content.insert(0, self.refresh_widget)
             list_content.append(self.get_more_widget)
 
-        self.body_update_subscription = self.body.update.subscribe(
-            body_update_subscription_action, True)
+        self._subscriptions.append(
+            self.body.update.subscribe(body_update_subscription_action)
+        )
 
     def create_refresh_widget(self):
         def f(button):

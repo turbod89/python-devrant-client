@@ -19,16 +19,18 @@ class LogInLogOutBtn(urwid.WidgetWrap):
         super().__init__(self.widget)
 
     def _subscribe_to_is_logged(self, login_btn, logout_btn):
-        async def action(is_logged, previous_is_logged):
+        def action(is_logged):
             if not is_logged:
                 self.widget.contents[0] = (
-                    login_btn, self.widget.contents[0][1])
+                    login_btn, self.widget.contents[0][1]
+                )
             else:
                 self.widget.contents[0] = (
-                    logout_btn, self.widget.contents[0][1])
+                    logout_btn, self.widget.contents[0][1]
+                )
 
         self.subscription_is_logged = dev_rant_service.is_logged.subscribe(
-            action, True)
+            action)
         return self
 
     def create(self):

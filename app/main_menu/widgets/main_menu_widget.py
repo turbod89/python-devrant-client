@@ -38,7 +38,7 @@ class MainMenu(urwid.WidgetWrap):
             enabled_btn
         ])
 
-        async def action(is_logged, prev_value):
+        def action(is_logged):
             if is_logged:
                 self.new_rant_button.contents[0] = (
                     enabled_btn,
@@ -51,7 +51,7 @@ class MainMenu(urwid.WidgetWrap):
                 )
 
         self._is_logged_subscription = dev_rant_service.is_logged.subscribe(
-            action, True)
+            action)
 
     def create(self):
 

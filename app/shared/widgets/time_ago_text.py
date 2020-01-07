@@ -1,8 +1,9 @@
 import asyncio
 import urwid
+from rx.subject import BehaviorSubject
 from datetime import datetime
 
-from app.services import Subscriptable, Subscription, logging
+from app.services import logging
 
 
 def _time_ago(time=False):
@@ -65,7 +66,7 @@ class TimeAgoText(urwid.WidgetWrap):
         self.widget = None
         self.parent_widget = kwargs.pop('parent_widget', None)
 
-        self.time_ago_S = Subscriptable()
+        self.time_ago_S = BehaviorSubject('<Unknown>')
         self._time_ago_subscription = None
 
         self.create(*new_args, **kwargs)
@@ -74,7 +75,7 @@ class TimeAgoText(urwid.WidgetWrap):
 
     def _subscribe_to_time_ago(self):
 
-        async def subscription_action(new_value, old_value):
+        def subscription_action(new_value):
             time_ago_text = self.format.format(
                 new_value
             )
@@ -90,7 +91,7 @@ class TimeAgoText(urwid.WidgetWrap):
             text, time = _time_ago(self.from_time)
             if text is None:
                 text = self.default_text
-            await self.time_ago_S.change(text)
+            self.time_ago_S.on_next(text)
             await asyncio.sleep(time)
 
             if time is not None:

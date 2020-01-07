@@ -2,7 +2,7 @@ import urwid
 import asyncio
 import json
 from app.services import logging
-from app.services import dev_rant_service, Subscriptable
+from app.services import dev_rant_service
 from app.services.devrant import DraftRant, DraftState
 
 
@@ -36,7 +36,7 @@ class NewRantWidget(urwid.WidgetWrap):
                 'tags': tags
             })
 
-            async def g(new_value, old_value):
+            def g(new_value):
 
                 if new_value is DraftState.Published:
                     self.clear_new_rant()

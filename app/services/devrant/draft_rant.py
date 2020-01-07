@@ -1,4 +1,4 @@
-from ..custom_pyrx import Subscriptable
+from rx.subject import BehaviorSubject
 
 
 class DraftState(object):
@@ -20,7 +20,7 @@ class DraftRant(object):
 
     def __init__(self, *args, **kwargs):
         self.response = None
-        self.state = Subscriptable(DraftState.Created)
+        self.state = BehaviorSubject(DraftState.Created)
 
         for arg in args:
             if type(arg) is dict:

@@ -1,5 +1,6 @@
 import urwid
 import asyncio
+import weakref
 
 from .app_widget import AppWidget
 from .services import dev_rant_service
@@ -24,7 +25,16 @@ class AppModule():
         self.loop.screen.set_terminal_properties(colors=256)
 
         async def q():
-            await self.dev_rant_service.get_rants()
+            try:
+                task = self.dev_rant_service.get_rants()
+                w = weakref.ref(task)
+                await task
+            except Exception as e:
+                task_future = w()
+                if task_future:
+                    task_future.cancel()
+                    await task_future
+                raise e
 
         asyncio.ensure_future(
             q()

@@ -5,7 +5,7 @@ from app.rants.widgets import AllRantList
 from app.rant.widgets import NewRantWidget
 from app.main_menu.widgets import MainMenu
 from app.auth.widgets import LoginWidget
-from app.services import dev_rant_service
+from app.services import dev_rant_service, logging
 from .app_style import AppStyle
 
 
@@ -27,14 +27,15 @@ class AppWidget(AppStyle, urwid.WidgetWrap):
         show_rant_list = self.get_trigger_show_rant_list()
         show_login_widget = self.get_trigger_show_login_widget()
 
-        async def action(is_logged, prev_value):
+        def action(is_logged):
+            logging.debug(is_logged)
             if is_logged:
                 show_rant_list()
             else:
                 show_login_widget()
 
         self._is_logged_subscritption = dev_rant_service.is_logged.subscribe(
-            action, True)
+            action)
         return self
 
     def _subscribe_error(self):
