@@ -8,6 +8,8 @@ from .rant import Rant
 from .draft_rant import DraftState
 from ..logging import logging
 
+logger = logging.getLogger(__name__)
+
 
 class DevRantService():
 
@@ -266,3 +268,4 @@ class DevRantService():
             self.base_url +
             '/users/{}'.format(self.auth_token.value.user_id) + '?' + param_url
         )
+        return response

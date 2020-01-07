@@ -3,6 +3,8 @@ import asyncio
 from app.services import dev_rant_service, logging
 from .generic_rant_list_widget import GenericRantList
 
+logger = logging.getLogger(__name__)
+
 
 class AllRantList(urwid.WidgetWrap):
 

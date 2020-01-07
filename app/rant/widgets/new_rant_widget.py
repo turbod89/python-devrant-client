@@ -5,6 +5,8 @@ from app.services import logging
 from app.services import dev_rant_service
 from app.services.devrant import DraftRant, DraftState
 
+logger = logging.getLogger(__name__)
+
 
 class NewRantWidget(urwid.WidgetWrap):
 
@@ -44,7 +46,7 @@ class NewRantWidget(urwid.WidgetWrap):
                 elif new_value is DraftState.Rejected:
                     error_response_body = json.loads(
                         draft_rant.response.text)
-                    logging.debug(error_response_body)
+                    logger.debug(error_response_body)
 
             draft_rant.state.subscribe(g)
 

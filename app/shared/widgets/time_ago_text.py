@@ -5,10 +5,12 @@ from datetime import datetime
 
 from app.services import logging
 
+logger = logging.getLogger(__name__)
+
 
 def _time_ago(time=False):
 
-    # source: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python
+    # source: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python # noqa
 
     now = datetime.now()
     if type(time) is int:
@@ -70,7 +72,7 @@ class TimeAgoText(urwid.WidgetWrap):
         self._time_ago_subscription = None
 
         self.create(*new_args, **kwargs)
-    
+
         super().__init__(self.widget)
 
     def _subscribe_to_time_ago(self):
