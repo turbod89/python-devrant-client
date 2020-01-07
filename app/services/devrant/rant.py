@@ -104,9 +104,11 @@ class Rant(object):
 
         data = {}
 
-        for original_field, final_field, _, inverse_transformation in field_mapping:
+        for original_field, final_field, _, inverse_transformation\
+                in field_mapping:
 
-            if not hasattr(self, final_field) or getattr(self, final_field) is None:
+            if not hasattr(self, final_field)\
+                    or getattr(self, final_field) is None:
                 data[original_field] = None
             elif inverse_transformation is None:
                 data[original_field] = getattr(self, final_field)

@@ -1,12 +1,13 @@
 import urwid
-import asyncio
-from app.services import logging
 from app.rants.widgets import AllRantList
 from app.rant.widgets import NewRantWidget
 from app.main_menu.widgets import MainMenu
 from app.auth.widgets import LoginWidget
-from app.services import dev_rant_service
+from app.services import dev_rant_service, logging
 from .app_style import AppStyle
+
+
+logger = logging.getLogger(__name__)
 
 
 class AppWidget(AppStyle, urwid.WidgetWrap):
@@ -27,19 +28,20 @@ class AppWidget(AppStyle, urwid.WidgetWrap):
         show_rant_list = self.get_trigger_show_rant_list()
         show_login_widget = self.get_trigger_show_login_widget()
 
-        async def action(is_logged, prev_value):
+        def action(is_logged):
+            logger.debug(is_logged)
             if is_logged:
                 show_rant_list()
             else:
                 show_login_widget()
 
         self._is_logged_subscritption = dev_rant_service.is_logged.subscribe(
-            action, True)
+            action)
         return self
 
     def _subscribe_error(self):
         async def f(error, last_error):
-            logging.error(error)
+            logger.error(error)
 
         dev_rant_service.error.subscribe(f)
 
@@ -72,7 +74,8 @@ class AppWidget(AppStyle, urwid.WidgetWrap):
         self.columns_widget = urwid.Columns(
             [
                 ('fixed', 16, self.main_menu),
-                ('fixed', 1, urwid.AttrMap(urwid.SolidFill(u'\u2502'), 'line')),
+                ('fixed', 1,
+                    urwid.AttrMap(urwid.SolidFill(u'\u2502'), 'line')),
                 ('weight', 4, self.login_widget),
             ],
             dividechars=1,

@@ -1,6 +1,6 @@
 import urwid
 from app.rant.widgets import RantListElementWidget
-from app.services import Subscriptable
+from rx.subject import BehaviorSubject
 
 
 class GenericRantList(urwid.WidgetWrap):
@@ -10,10 +10,16 @@ class GenericRantList(urwid.WidgetWrap):
         self.widget = None
         self.rants_subscriptable = rants_subscriptable
         self.rants = []
-        self.update = Subscriptable()
+        self.update = BehaviorSubject(self)
+        self._subscriptions = []
 
         self.create()
         super().__init__(self.widget)
+
+    def __del__(self):
+        self.update.dispose()
+        for subscription in self._subscritpions:
+            subscription.unsubscribe()
 
     def create_list_box(self):
 
@@ -42,7 +48,7 @@ class GenericRantList(urwid.WidgetWrap):
         self._subscribe_rant_list()
 
     def _subscribe_rant_list(self):
-        async def action(new_value, old_value):
+        def action(new_value):
             self.rants = new_value
 
             simple_list_walker = self.widget.contents['body'][0].body
@@ -77,7 +83,8 @@ class GenericRantList(urwid.WidgetWrap):
             # delete excedent
             simple_list_walker.contents[:i]
 
-            await self.update.change(self)
+            self.update.on_next(self)
 
-        self.rant_list_subscription = self.rants_subscriptable.subscribe(
-            action, True)
+        self._subscriptions.append(
+            self.rants_subscriptable.subscribe(action)
+        )

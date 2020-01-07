@@ -1,13 +1,14 @@
 import requests
 import urllib
 import json
-import asyncio
+from rx.subject import BehaviorSubject, Subject
 from heapq import merge
-from app.services.custom_pyrx import Subscriptable
 from .auth_token import AuthToken
 from .rant import Rant
 from .draft_rant import DraftState
 from ..logging import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DevRantService():
@@ -20,17 +21,21 @@ class DevRantService():
             'app': 3,
         }
 
-        self.rants = Subscriptable([])
-        self.error = Subscriptable()
-        self.me = Subscriptable()
-        self.auth_token = Subscriptable()
-        self.is_logged = Subscriptable(False)
+        self.rants = BehaviorSubject([])
+        self.error = Subject()
+        self.me = BehaviorSubject(None)
+        self.auth_token = BehaviorSubject(None)
+        self.is_logged = BehaviorSubject(False)
 
-        self._login_request = Subscriptable()
-
-        self._subscribe_to_login_request()
         self._subscribe_to_auth_token()
         self._load_cache()
+
+    def __del__(self):
+        self.rants.dispose()
+        self.error.dispose()
+        self.me.dispose()
+        self.auth_token.dispose()
+        self.is_logged.dispose()
 
     def _get_params(self, **kwargs):
         params = dict(self.base_params, **kwargs)
@@ -41,7 +46,7 @@ class DevRantService():
             fh = open(filename, 'r')
         except FileNotFoundError:
             self._write_cache(filename)
-            self._load_cache()
+            self._load_cache(filename)
         else:
             try:
                 cache_data = json.load(fh)
@@ -51,47 +56,43 @@ class DevRantService():
                 cached_auth_token = cache_data.get('auth_token')
 
                 if cached_auth_token is not None:
-                    cached_auth_token = AuthToken(
-                        **cached_auth_token)
-                    asyncio.ensure_future(
-                        self.auth_token.change(cached_auth_token)
-                    )
+                    cached_auth_token = AuthToken(**cached_auth_token)
+                    self.auth_token.on_next(cached_auth_token)
             fh.close()
 
     def _write_cache(self, filename='.cache.json'):
-        fh = open(filename, 'w')
+
         cache_data = {}
+
+        try:
+            fh = open(filename, 'r')
+            cache_data = json.load(fh)
+        except FileNotFoundError:
+            pass
+        except json.JSONDecodeError:
+            pass
+        else:
+            fh.close()
+
+        fh = open(filename, 'w')
         if self.auth_token.value is not None:
             cache_data['auth_token'] = self.auth_token.value.__dict__()
 
         json.dump(cache_data, fh)
         fh.close()
 
-    def _subscribe_to_login_request(self):
-        async def action(response, *args, **kwargs):
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('success'):
-                    auth_token = AuthToken(
-                        **data.get('auth_token'))
-                    await self.auth_token.change(auth_token)
-                    await self.get_about_me()
-                else:
-                    self.error.change({
-                        'message': data.get('error')
-                    })
-
-        self._login_request_subscription = self._login_request.subscribe(
-            action)
-        return self
+    def _delete_cache(self, filename='.cache.json'):
+        fh = open(filename, 'w')
+        json.dump({}, fh)
+        fh.close()
 
     def _subscribe_to_auth_token(self):
-        async def action(value, prev_value):
+        def action(value):
             # change is_logged value
             if self.is_logged.value and value.user_id is None:
-                await self.is_logged.change(False)
-            elif not self.is_logged.value and value.user_id is not None:
-                await self.is_logged.change(True)
+                self.is_logged.on_next(False)
+            elif not self.is_logged.value and value and value.user_id:
+                self.is_logged.on_next(True)
 
             # save new auth_token
             self._write_cache()
@@ -114,9 +115,9 @@ class DevRantService():
             new_rants = [Rant(rant) for rant in new_rants]
             all_rants = list(merge(self.rants.value, new_rants,
                                    key=lambda x: x.id, reverse=True))
-            await self.rants.change(all_rants)
+            self.rants.on_next(all_rants)
         else:
-            self.error.change({
+            self.error.on_next({
                 'code': 1,
                 'message': 'Unexpected status code',
                 'response': response
@@ -156,9 +157,9 @@ class DevRantService():
             all_rants = list(merge(new_rants, self.rants.value,
                                    key=lambda x: x.id, reverse=True))
 
-            await self.rants.change(all_rants)
+            self.rants.on_next(all_rants)
         else:
-            self.error.change({
+            self.error.on_next({
                 'code': 1,
                 'message': 'Unexpected status code',
                 'response': response
@@ -167,8 +168,6 @@ class DevRantService():
         return self
 
     async def post_rant(self, draft_rant):
-
-        logging.debug('here in dev_rant_service.post_rant')
 
         headers = {
             "Host": "devrant.com",
@@ -204,21 +203,21 @@ class DevRantService():
                 await draft_rant.state.change(DraftState.Published)
             else:
                 await draft_rant.state.change(DraftState.Rejected)
-                await self.error.change({
+                await self.error.on_next({
                     'code': 2,
                     'message': 'Posted rant error',
                     'response': draft_rant.response
                 })
         elif draft_rant.response.status_code == 400:
             await draft_rant.state.change(DraftState.Rejected)
-            await self.error.change({
+            await self.error.on_next({
                 'code': 2,
                 'message': 'Posted rant error',
                 'response': draft_rant.response
             })
         else:
             await draft_rant.state.change(DraftState.Rejected)
-            await self.error.change({
+            await self.error.on_next({
                 'code': 1,
                 'message': 'Unexpected status code',
                 'response': draft_rant.response
@@ -244,12 +243,20 @@ class DevRantService():
             }
         )
 
-        await self._login_request.change(response)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                auth_token = AuthToken(**data.get('auth_token'))
+                self.auth_token.on_next(auth_token)
+                # await self.get_about_me()
+            else:
+                self.error.on_next({
+                    'message': data.get('error')
+                })
 
     def logout(self):
-        asyncio.ensure_future(
-            self.auth_token.change(AuthToken())
-        )
+        self._delete_cache()
+        self.auth_token.on_next(AuthToken())
 
     async def get_about_me(self):
 
@@ -258,4 +265,7 @@ class DevRantService():
             token_key=self.auth_token.value.key
         )
         response = requests.get(
-            self.base_url + '/users/{}'.format(self.auth_token.value.user_id) + '?' + param_url)
+            self.base_url +
+            '/users/{}'.format(self.auth_token.value.user_id) + '?' + param_url
+        )
+        return response

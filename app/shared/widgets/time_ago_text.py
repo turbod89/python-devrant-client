@@ -1,13 +1,16 @@
 import asyncio
 import urwid
+from rx.subject import BehaviorSubject
 from datetime import datetime
 
-from app.services import Subscriptable, Subscription, logging
+from app.services import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _time_ago(time=False):
 
-    # source: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python
+    # source: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python # noqa
 
     now = datetime.now()
     if type(time) is int:
@@ -65,16 +68,16 @@ class TimeAgoText(urwid.WidgetWrap):
         self.widget = None
         self.parent_widget = kwargs.pop('parent_widget', None)
 
-        self.time_ago_S = Subscriptable()
+        self.time_ago_S = BehaviorSubject('<Unknown>')
         self._time_ago_subscription = None
 
         self.create(*new_args, **kwargs)
-    
+
         super().__init__(self.widget)
 
     def _subscribe_to_time_ago(self):
 
-        async def subscription_action(new_value, old_value):
+        def subscription_action(new_value):
             time_ago_text = self.format.format(
                 new_value
             )
@@ -90,7 +93,7 @@ class TimeAgoText(urwid.WidgetWrap):
             text, time = _time_ago(self.from_time)
             if text is None:
                 text = self.default_text
-            await self.time_ago_S.change(text)
+            self.time_ago_S.on_next(text)
             await asyncio.sleep(time)
 
             if time is not None:
