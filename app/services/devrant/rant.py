@@ -1,5 +1,4 @@
 import math
-import asyncio
 from datetime import datetime
 from rx.subject import Subject
 from ..logging import logging
@@ -64,8 +63,10 @@ field_mapping = (
     ('id', 'id', None, None),
     ('tags', 'tags', None, None),
     ('text', 'text', None, None),
+    ('score', 'score', None, None),
     ('edited', 'is_edited', None, None),
     ('num_comments', 'num_comments', None, None),
+    ('comments', 'comments', None, None),
     ('user_id', 'user', to_user, from_user),
     ('attached_image', 'image', to_image, from_image),
     ('created_time', 'created_time', to_date, from_date),

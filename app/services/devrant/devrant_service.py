@@ -1,6 +1,7 @@
 import requests
 import urllib
 import json
+from rx import operators as ops
 from rx.subject import BehaviorSubject, Subject
 from heapq import merge
 from .auth_token import AuthToken
@@ -21,7 +22,11 @@ class DevRantService():
             'app': 3,
         }
 
-        self.rants = BehaviorSubject([])
+        self._rants = BehaviorSubject([])
+        self.rants = self._rants.pipe(
+            ops.map(self._on_update_rants),
+        )
+        self._rants_by_id = {}
         self.error = Subject()
         self.me = BehaviorSubject(None)
         self.auth_token = BehaviorSubject(None)
@@ -31,7 +36,7 @@ class DevRantService():
         self._load_cache()
 
     def __del__(self):
-        self.rants.dispose()
+        self._rants.dispose()
         self.error.dispose()
         self.me.dispose()
         self.auth_token.dispose()
@@ -100,11 +105,18 @@ class DevRantService():
         self._auth_token_subscription = self.auth_token.subscribe(action)
         return self
 
+    def _on_update_rants(self, rants):
+        self._rants_by_id = {
+            rant.id: rant
+            for rant in rants
+        }
+        return rants
+
     async def get_rants(self, limit=10):
         param_url = self._get_params(
             sort='recent',
             limit=limit,
-            skip=len(self.rants.value)
+            skip=len(self._rants.value)
         )
 
         response = requests.get(
@@ -113,9 +125,9 @@ class DevRantService():
         if response.status_code == 200:
             new_rants = json.loads(response.text)['rants']
             new_rants = [Rant(rant) for rant in new_rants]
-            all_rants = list(merge(self.rants.value, new_rants,
+            all_rants = list(merge(self._rants.value, new_rants,
                                    key=lambda x: x.id, reverse=True))
-            self.rants.on_next(all_rants)
+            self._rants.on_next(all_rants)
         else:
             self.error.on_next({
                 'code': 1,
@@ -125,12 +137,51 @@ class DevRantService():
 
         return self
 
+    async def get_rant_comments(self, rant):
+        param_url = self._get_params()
+
+        response = requests.get(
+            self.base_url + '/devrant/rants/{}'.format(rant.id)
+            + '?' + param_url
+        )
+
+        if response.status_code != 200:
+            self.error.on_next({
+                'code': 1,
+                'message': 'Unexpected status code',
+                'response': response
+            })
+            return self
+
+        response_data = json.loads(response.text)
+        new_rant_data = response_data['rant']
+        comments_data = response_data['comments']
+        rant.from_dict(new_rant_data)
+        logger.debug(comments_data)
+        rant.comments = [
+            Rant({
+                'id': comment_data['id'],
+                'text': comment_data['body'],
+                'score': comment_data['score'],
+                'created_time': comment_data['created_time'],
+                'user_id': comment_data['user_id'],
+                'user_username': comment_data['user_username'],
+                'user_score': comment_data['user_score'],
+                'num_comments': 0,
+                'attached_image': None,
+                'tags': []
+            })
+            for comment_data in comments_data
+        ]
+
+        return self
+
     async def get_new_rants(self, skip=0, limit=10):
 
-        if len(self.rants.value) == 0:
+        if len(self._rants.value) == 0:
             return await self.get_rants()
 
-        newest_actual_rant = self.rants.value[0]
+        newest_actual_rant = self._rants.value[0]
 
         param_url = self._get_params(
             sort='recent',
@@ -146,7 +197,7 @@ class DevRantService():
             new_rants.sort(key=lambda x: x.id, reverse=True)
             if new_rants[-1].id > newest_actual_rant.id:
                 await self.get_new_rants(skip+limit, limit)
-                newest_actual_rant = self.rants.value[0]
+                newest_actual_rant = self._rants.value[0]
 
             new_rants = [
                 rant
@@ -154,10 +205,10 @@ class DevRantService():
                 if rant.id > newest_actual_rant.id
             ]
 
-            all_rants = list(merge(new_rants, self.rants.value,
+            all_rants = list(merge(new_rants, self._rants.value,
                                    key=lambda x: x.id, reverse=True))
 
-            self.rants.on_next(all_rants)
+            self._rants.on_next(all_rants)
         else:
             self.error.on_next({
                 'code': 1,

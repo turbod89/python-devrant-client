@@ -79,6 +79,9 @@ class AppWidget(AppStyle, urwid.WidgetWrap):
                 logging.error('Expected to receive a rant to navigate to.')
 
             self.rant_detail_widget.rant = args[0]
+            asyncio.ensure_future(
+                dev_rant_service.get_rant_comments(self.rant_detail_widget.rant)
+            )
 
             self.columns_widget.contents[2] = (
                 self.rant_detail_widget,

@@ -3,7 +3,9 @@ import asyncio
 import weakref
 
 from .app_widget import AppWidget
-from .services import dev_rant_service
+from .services import dev_rant_service, logging
+
+logger = logging.getLogger(__name__)
 
 
 class AppModule():
@@ -40,7 +42,10 @@ class AppModule():
             q()
         )
 
-        self.loop.run()
+        try:
+            self.loop.run()
+        except Exception as e:
+            logger.error(e)
 
     def exit_program(self):
         def f(*args):
